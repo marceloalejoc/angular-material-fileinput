@@ -1,10 +1,10 @@
 {
-  "name": "lf-ng-md-file-input",
+  "name": "lf-ng-md-file-input-4ie",
   "version": "1.5.0",
   "authors": [
     "shuyu <lfshuyu@gmail.com>"
   ],
-  "description": "angular material file input with more feature.",
+  "description": "angular material file input with more feature. For IE10 explorer",
   "keywords": [
     "angular",
     "material",
@@ -28,7 +28,9 @@
     "src"
   ],
   "dependencies": {
-    "angular-material": "^1.0.9"
+    "angular-material": "^1.0.9",
+    "jspdf": "^1.3.3",
+    "pdfjs-dist-combined": "^1.8.199"
   },
   "homepage": "https://github.com/shuyu/angular-material-fileinput",
   "main": [

@@ -19,6 +19,10 @@
         <script src="../dist/lf-ng-md-file-input.js"></script>
         <!-- <script src="../src/lf-ng-md-file-input.js"></script> -->
 
+        <!-- <script src="../bower_components/pdfjs-dist/build/pdf.js"></script> -->
+        <script src="../bower_components/pdfjs-combined/pdf.combined.js"></script>
+        <script src="../bower_components/jspdf/dist/jspdf.min.js"></script>
+
         <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
 
         <script type="text/javascript">
@@ -184,18 +188,18 @@
                 <h2>Custom labels</h2>
 
                 <xmp class="prettyprint lang-html">
-<lf-ng-md-file-input lf-files="files04" lf-browse-label="Search" lf-remove-label="Delete" ></lf-ng-md-file-input>
+<lf-ng-md-file-input lf-files="files04" lf-browse-label="Search" lf-remove-label="Delete" lf-save-jpg-pdf-label="Save .jpg.pdf" lf-send-jpg-pdf-label="Send .jpg.pdf" ></lf-ng-md-file-input>
                 </xmp>
 
-                <lf-ng-md-file-input lf-files="files04" lf-browse-label="Search" lf-remove-label="Delete" ></lf-ng-md-file-input>
+                <lf-ng-md-file-input lf-files="files04" lf-browse-label="Search" lf-remove-label="Delete" lf-save-jpg-pdf-label="Save .jpg.pdf" lf-send-jpg-pdf-label="Send .jpg.pdf" ></lf-ng-md-file-input>
 
                 <br>
 
                 <xmp class="prettyprint lang-html">
-<lf-ng-md-file-input lf-files="files05" lf-browse-label="Search" lf-remove-label="Delete" lf-drag-and-drop-label="Drag and Drop here!" drag preview></lf-ng-md-file-input>
+<lf-ng-md-file-input lf-files="files05" lf-browse-label="Search" lf-remove-label="Delete" lf-drag-and-drop-label="Drag and Drop here!" lf-save-jpg-pdf-label="Save .jpg.pdf" lf-send-jpg-pdf-label="Send .jpg.pdf" drag preview></lf-ng-md-file-input>
                 </xmp>
 
-                <lf-ng-md-file-input lf-files="files05" lf-browse-label="Search" lf-remove-label="Delete" lf-drag-and-drop-label="Drag and Drop here!" drag preview></lf-ng-md-file-input>
+                <lf-ng-md-file-input lf-files="files05" lf-browse-label="Search" lf-remove-label="Delete" lf-drag-and-drop-label="Drag and Drop here!" lf-save-jpg-pdf-label="Save .jpg.pdf" lf-send-jpg-pdf-label="Send .jpg.pdf" drag preview></lf-ng-md-file-input>
                 <br>
 
                 <h2>Preview</h2>
@@ -215,17 +219,15 @@
                 <lf-ng-md-file-input lf-files="files07" drag></lf-ng-md-file-input>
 
                 <h2>Combination</h2>
-
                 <xmp class="prettyprint lang-html">
-<lf-ng-md-file-input lf-files="files08" lf-option="optoin08" lf-placeholder="Pick Image" lf-browse-label="Search" lf-remove-label="Delete" multiple drag preview ng-disabled="disabled06"></lf-ng-md-file-input>
+<lf-ng-md-file-input lf-files="files08" lf-option="optoin08" lf-placeholder="Pick Image" lf-save-jpg-pdf-label="Save reduced file" lf-send-jpg-pdf-label="Send reduced file" lf-browse-label="Search" lf-remove-label="Delete" multiple drag preview ng-disabled="disabled06"></lf-ng-md-file-input>
                 </xmp>
 
-                <lf-ng-md-file-input lf-files="files08" lf-option="optoin08" lf-placeholder="Pick Image" lf-browse-label="Search" lf-remove-label="Delete" multiple drag preview ng-disabled="disabled06"></lf-ng-md-file-input>
+                <lf-ng-md-file-input lf-files="files08" lf-option="optoin08" lf-placeholder="Pick Image" lf-save-jpg-pdf-label="Save reduced file" lf-send-jpg-pdf-label="Send reduced file" lf-browse-label="Search" lf-remove-label="Delete" multiple drag preview ng-disabled="disabled06"></lf-ng-md-file-input>
                 <br>
                 <md-checkbox ng-model="disabled06" aria-label="disabled06">
                     Disable
                 </md-checkbox>
-
                 <h2>Validation</h2>
 
                 <xmp class="prettyprint lang-html">
