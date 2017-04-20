@@ -2,6 +2,13 @@
 
     'use strict';
 
+    var npDoc = [];
+    var npLastPage = [];
+    var npNumPage = [];
+    var npFileSize = [];
+    var npMove = [];
+    var npFileTmp = [];
+
     var genLfObjId = function(){
     	return 	'lfobjyxxxxxxxx'.replace(/[xy]/g, function(c) {
 	    			var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
@@ -18,10 +25,19 @@
             return "video";
         }else if(isAudioType(type,name)){
             return "audio";
+        }else if(isPdfTypeIE(type,name)){
+            return "pdfIE";
         }
         return "object";
     };
 
+    var isInternetExplorer = function(){
+        /* For diferent's browsers */
+        if(navigator.userAgent.toLowerCase().indexOf("msie") >= 0 || navigator.userAgent.toLowerCase().indexOf("trident") >= 0)
+            return true;
+        else
+            return false;
+    };
     var isImageType = function(type,name){
         return (type.match('image.*') || name.match(/\.(gif|png|jpe?g)$/i)) ? true : false;
     };
@@ -34,24 +50,30 @@
         return (type.match('audio.*') || name.match(/\.(ogg|mp3|wav)$/i)) ? true : false;
     };
 
-    var genLfFileObj = function(file) {
+    var isPdfTypeIE = function(type,name){
+        return (type.match('application/pdf') && name.match(/\.(pdf)$/i)) ? true : false;
+    };
+
+    var genLfFileObj = function(file,typedarray) {
         var lfFileObj = {
             "key":genLfObjId(),
             "lfFile":file,
             "lfFileName":file.name,
             "lfFileType":file.type,
+            "lfFileSize":parseInt((file.size/1024/1024)*100)/100,
             "lfTagType":parseFileType(file),
             "lfDataUrl":window.URL.createObjectURL(file),
+            "lfUint8Array": typedarray,
             "isRemote":false
         };
         return lfFileObj;
-    }
+    };
 
     var genRemoteLfFileObj = function(url, fileName, fileType) {
         var vitrualFile = {
             "name":fileName,
             "type":fileType
-        }
+        };
         var lfFileObj = {
             "key":genLfObjId(),
             "lfFile":void 0,
@@ -62,7 +84,84 @@
             "isRemote":true
         };
         return lfFileObj;
-    }
+    };
+
+    var renderPDF = function(url, scope, options) {
+      var canvasContainer = document.getElementById('_'+scope.lfFileObj.key);
+        var divContainer = document.getElementById('_div_'+scope.lfFileObj.key);
+        if(!divContainer) {
+          divContainer = document.createElement('div');
+          divContainer.id = '_div_'+scope.lfFileObj.key;
+          canvasContainer.appendChild(divContainer);
+        }
+        divContainer.innerHTML = "";
+        angular.element(divContainer).bind('mousedown', function(e){
+          var x=e.clientX||e.layerX||0;
+          var y=e.clientY||e.layerY||0;
+          npMove[scope.lfFileObj.key] = {x:x,y:y};
+        });
+        angular.element(divContainer).bind('mouseup', function(e){
+          npMove[scope.lfFileObj.key] = null;
+        });
+        angular.element(divContainer).bind('mouseout', function(e){
+          npMove[scope.lfFileObj.key] = null;
+        });
+        angular.element(divContainer).bind('mousemove', function(e){
+          if(npMove[scope.lfFileObj.key]&&npMove[scope.lfFileObj.key].x){
+            var x=e.clientX||e.layerX||0;
+            var y=e.clientY||e.layerY||0;
+            canvasContainer.scrollTop-=(y-npMove[scope.lfFileObj.key].y);
+            canvasContainer.scrollLeft-=(x-npMove[scope.lfFileObj.key].x);
+            npMove[scope.lfFileObj.key] = {x:x,y:y};
+          }
+        });
+        options = options || { scale: 1 };
+
+        function renderPage(page) {
+            var viewport = page.getViewport(options.scale);
+            var canvas = document.createElement('canvas');
+              canvas.className = 'canvasClass';
+              angular.element(canvas).css('width','80%');
+            var ctx = canvas.getContext('2d');
+            var renderContext = {
+              canvasContext: ctx,
+              viewport: viewport
+            };
+
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            divContainer.appendChild(canvas);
+
+            var task = page.render(renderContext);
+            task.promise.then(function(){
+              if(npNumPage[scope.lfFileObj.key]===0){
+                npDoc[scope.lfFileObj.key] = new jsPDF('p','pt',[canvas.width, canvas.height]);
+                npDoc[scope.lfFileObj.key].deletePage(1);
+                npDoc[scope.lfFileObj.key].addPage(canvas.width, canvas.height);
+              }
+              var img = new Image();
+              img.src = canvas.toDataURL('image/jpeg', 1.0);
+              npDoc[scope.lfFileObj.key].addImage(img.src, 'jpeg', 0, 0, canvas.width, canvas.height);
+              npNumPage[scope.lfFileObj.key]++;
+              if(npNumPage[scope.lfFileObj.key]>=npLastPage[scope.lfFileObj.key]) {
+                npFileSize[scope.lfFileObj.key] = npDoc[scope.lfFileObj.key].output().length;
+                //npDoc[scope.lfFileObj.key].save('reducido.pdf');
+              }else{
+                npDoc[scope.lfFileObj.key].addPage(canvas.width, canvas.height);
+              }
+            });
+        }
+
+        function renderPages(pdfDoc) {
+          npNumPage[scope.lfFileObj.key] = 0;
+          npLastPage[scope.lfFileObj.key] = pdfDoc.numPages;
+          for(var num = 1; num <= pdfDoc.numPages; num++) {
+            pdfDoc.getPage(num).then(renderPage);
+          }
+        }
+        PDFJS.disableWorker = true;
+        PDFJS.getDocument(url).then(renderPages);
+    };
 
     var lfNgMdFileinput = angular.module('lfNgMdFileInput', ['ngMaterial']);
 
@@ -101,6 +200,15 @@
                         );
                         break;
                     }
+                    case 'pdfIE': {
+                        element.replaceWith(
+                            '<div id="_' + scope.lfFileObj.key + '" class="canvas-container">' +
+                            //'<canvas id="' + scope.lfFileObj.lfFileName + '">' +
+                            '</div>'
+                        );
+                        renderPDF(scope.lfFileObj.lfUint8Array, scope);
+                        break;
+                    }
                     default : {
                         if(scope.lfFileObj.lfFile == void 0){
                             fileType = 'unknown/unknown';
@@ -128,12 +236,21 @@
                             '<div class="lf-ng-md-file-input-drag-text">{{strCaptionDragAndDrop}}</div>',
                         '</div>',
                         '<div class="lf-ng-md-file-input-thumbnails" ng-if="isPreview == true">',
-                            '<div class="lf-ng-md-file-input-frame" ng-repeat="lffile in lfFiles" ng-click="onFileClick(lffile)">',
+                            '<div class="lf-ng-md-file-input-frame" ng-repeat="lffile in lfFiles" ng-click="onFileClick(lffile)" ng-mouseover="isPdfImg(lffile.key)">',
+                                '<div ng-if="lffile.lfFileSize" style="position:absolute;text-align:left;">',
+                                  '<div style="margin-top:-2px">',
+                                    '<button id="lf-zoomImgIn" ng-click="lfCanvasZoom(lffile.key,20)"></button> ',
+                                    '<button id="lf-zoomImgOut" ng-click="lfCanvasZoom(lffile.key,-20)"></button> ',
+                                    '<button id="lf-downloadImg" ng-click="savePdfImg(lffile.key)" title="{{strCaptionSaveJpgPdf}} {{toPdfImg[lffile.key]}} MiB" ng-if="toPdfImg[lffile.key]"></button> ',
+                                    '<span ng-if="toPdfImg[lffile.key]">&nbsp; <input type="checkbox" ng-click="sendPdfImg(lffile.key,this)" title="">{{strCaptionSendJpgPdf}} {{toPdfImg[lffile.key]}} MiB</span>',
+                                    '</div>',
+                                '</div>',
                                 '<div class="lf-ng-md-file-input-x" aria-label="remove {{lffile.lfFileName}}" ng-click="removeFile(lffile,$event)">&times;</div>',
                                 '<lf-file lf-file-obj="lffile" lf-unknow-class="strUnknowIconCls"/>',
                                 // '<md-progress-linear md-mode="indeterminate"></md-progress-linear>',
                                 '<div class="lf-ng-md-file-input-frame-footer">',
                                     '<div class="lf-ng-md-file-input-frame-caption">{{lffile.lfFileName}}</div>',
+                                    '<div class="lf-ng-md-file-input-frame-caption" ng-if="lffile.lfFileSize" style="width:100%">{{lffile.lfFileSize}} MiB</div>',
                                 '</div>',
                             '</div>',
                         '</div>',
@@ -189,7 +306,7 @@
         			return modelValue.length>0;
       			};
             }
-        }
+        };
     });
 
     lfNgMdFileinput.directive('lfMaxcount', function() {
@@ -213,7 +330,7 @@
                     return modelValue.length <= intMax;
                 };
             }
-        }
+        };
     });
 
     lfNgMdFileinput.directive('lfFilesize', function() {
@@ -260,7 +377,7 @@
       				return boolValid;
                 };
             }
-        }
+        };
     });
 
 	lfNgMdFileinput.directive('lfTotalsize', function() {
@@ -302,7 +419,7 @@
       				return intTotal < intMax;
                 };
             }
-        }
+        };
     });
 
     lfNgMdFileinput.directive('lfMimetype', function() {
@@ -335,7 +452,7 @@
                     return boolValid;
                 };
             }
-        }
+        };
     });
 
     lfNgMdFileinput.directive('lfNgMdFileInput',['$q','$compile','$timeout', function($q,$compile,$timeout){
@@ -353,6 +470,8 @@
 				lfDragAndDropLabel:'@?',
 				lfBrowseLabel: '@?',
 				lfRemoveLabel: '@?',
+        lfSaveJpgPdfLabel: '@?',
+        lfSendJpgPdfLabel: '@?',
                 lfOnFileClick: '=?',
                 lfOnFileRemove: '=?',
                 accept:'@?',
@@ -380,7 +499,7 @@
 
                 if(angular.isDefined(attrs.drag)){
                     scope.isDrag = true;
-                };
+                }
 
                 if(angular.isDefined(attrs.multiple)){
                     elFileinput.attr('multiple','multiple');
@@ -455,6 +574,10 @@
 
 				scope.strCaptionRemove = 'Remove';
 
+        scope.strCaptionSaveJpgPdf = 'Save reduced ';
+
+        scope.strCaptionSendJpgPdf = 'Send reduced ';
+
                 scope.strAriaLabel = "";
 
                 if (angular.isDefined(attrs.ariaLabel)) {
@@ -486,6 +609,14 @@
 					scope.strCaptionRemove = scope.lfRemoveLabel;
 				}
 
+        if(scope.lfSaveJpgPdfLabel){
+					scope.strCaptionSaveJpgPdf = scope.lfSaveJpgPdfLabel;
+				}
+
+        if(scope.lfSendJpgPdfLabel){
+					scope.strCaptionSendJpgPdf = scope.lfSendJpgPdfLabel;
+				}
+
                 scope.openDialog = function(event, el) {
 					if(event){
 						$timeout(function() {
@@ -499,7 +630,66 @@
 					}
 				};
 
+        scope.savePdfImg = function(fkey) {
+          var ik=0; scope.lfFiles.some(function(o,i){ik=i;return (o.key==fkey);});
+          var newFileName = scope.lfFiles[ik].lfFileName.replace('.pdf','.'+fkey)+'.pdf';
+          npDoc[fkey].save(newFileName);
+          //scope.removeAllFiles();
+        };
+
+        scope.sendPdfImg = function(fkey) {
+          var ik=0, isFile = scope.lfFiles.some(function(o,i){ik=i;return (o.key==fkey);});
+          if(npDoc[fkey] && isFile) {
+            if(scope.lfFiles[ik].lfFileName.indexOf('.'+fkey+'.pdf') < 0) {
+              var filename = scope.lfFiles[ik].lfFileName.replace('.pdf','.'+fkey+'.pdf');
+              npFileTmp[ik] = {
+                "lfFile":scope.lfFiles[ik].lfFile,
+                "lfFileSize":scope.lfFiles[ik].lfFileSize,
+                "lfFileName":scope.lfFiles[ik].lfFileName
+              };
+              scope.lfFiles[ik].lfFile = new File([npDoc[fkey].output('blob')], filename, {type: "application/pdf"} );
+              scope.lfFiles[ik].lfFileSize = parseInt((npFileSize[fkey]/1024/1024)*100)/100;
+              scope.lfFiles[ik].lfFileName = filename;
+              //scope.toPdfImg[fkey] = false;
+            }else{
+              scope.lfFiles[ik].lfFile = npFileTmp[ik].lfFile;
+              scope.lfFiles[ik].lfFileSize = npFileTmp[ik].lfFileSize;
+              scope.lfFiles[ik].lfFileName = npFileTmp[ik].lfFileName;
+            }
+          }
+        };
+
+        scope.lfCanvasZoom = function(fkey,zoom) {
+          var ik=0; scope.lfFiles.some(function(o,i){ik=i;return (o.key==fkey);});
+          var divContainer = document.getElementById('_div_'+fkey);
+          var a = angular.element(divContainer.children).css('width');
+          var b = angular.element(divContainer).css('width');
+          var porcentaje = parseInt(a.replace('%','').replace('px',''));
+          if(a.indexOf('px')>=0) {
+            porcentaje = parseInt(a.replace('px','')) * 100 / parseInt(b.replace('px',''));
+          }
+          porcentaje += zoom;
+          if(10<porcentaje && porcentaje<200) {
+            angular.element(divContainer.children).css('width',porcentaje+'% ');
+          }
+        };
+
+        scope.isPdfImg = function(fkey) {
+          var ik=0; scope.lfFiles.some(function(o,i){ik=i;return (o.key==fkey);});
+          if(npFileSize[fkey] <= scope.lfFiles[ik].lfFile.size) {
+            scope.toPdfImg[fkey] = parseInt((npFileSize[fkey]/1024/1024)*100)/100;
+          } else {
+            scope.toPdfImg[fkey] = false;
+          }
+          if(isInternetExplorer()) {
+            scope.toPdfImg[fkey] = false;
+          }
+        };
+
+        scope.toPdfImg = [];
+
 				scope.removeAllFiles = function(event){
+          scope.toPdfImg = [];
 					if(scope.isDisabled){
 						return;
 					}
@@ -604,34 +794,36 @@
                     var names = scope.lfFiles.map(function(obj){
                         return obj.lfFileName;
                     });
+                    var i,file;
                     scope.floatProgress = 0;
 					if(scope.isMutiple){
                         intFilesCount = files.length;
                         scope.intLoading = intFilesCount;
-                        for(var i=0;i<files.length;i++){
-                            var file = files[i];
-                            setTimeout(readFile(file), i*100);
+                        for(i=0;i<files.length;i++){
+                            file = files[i];
+                            setTimeout(readFile(files[i]), i*100);
                         }
                     }else{
                         intFilesCount = 1;
                         scope.intLoading = intFilesCount;
-                        for(var i=0;i<files.length;i++){
-                            var file = files[i];
+                        for(i=0;i<files.length;i++){
+                            file = files[i];
                             scope.removeAllFiles();
                             readFile(file);
                             break;
                         }
                     }
 					elFileinput.val('');
-                }
+        };
 
                 var executeValidate = function() {
                     ctrl.$validate();
-                }
+                };
 
 				var readFile = function(file){
 					readAsDataURL(file).then(function(result){
 
+                        var typedarray = new Uint8Array(result.result);
                         var isFileAreadyExist = false;
 
                         scope.lfFiles.every(function(obj,idx){
@@ -649,10 +841,10 @@
 						});
 
                         if(!isFileAreadyExist){
-                            var obj = genLfFileObj(file);
+                            var obj = genLfFileObj(file,typedarray);
 						    scope.lfFiles.push(obj);
                         }
-                        if(scope.intLoading==0) {
+                        if(scope.intLoading===0) {
                             executeValidate();
                         }
 					},function(error){
