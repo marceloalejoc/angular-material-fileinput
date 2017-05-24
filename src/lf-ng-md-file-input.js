@@ -656,6 +656,7 @@
               scope.lfFiles[ik].lfFileSize = npFileTmp[ik].lfFileSize;
               scope.lfFiles[ik].lfFileName = npFileTmp[ik].lfFileName;
             }
+            ctrl.$validate();
           }
         };
 
